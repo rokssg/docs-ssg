@@ -172,13 +172,13 @@ function Install-NodeJS {
         Write-Host "Node.js url is not valid."
         exit 1
     }
-    Write-Host "Installinging Node.js from $url..."
+    Write-Host "Installing Node.js from $url..."
     Invoke-WebRequest -Uri $url -OutFile $outputPath
     if (-not (Test-Path $outputPath)) {
         Write-Host "Node.js not correctly installed."
         exit 1
     }
-    Write-Host "Installinging Node.js..."
+    Write-Host "Installing Node.js..."
     Start-Process msiexec.exe -Wait -ArgumentList @("/i", $outputPath, "/qn", "/norestart")
     Remove-Item $outputPath -Force
     $nodeVersion = node -v
