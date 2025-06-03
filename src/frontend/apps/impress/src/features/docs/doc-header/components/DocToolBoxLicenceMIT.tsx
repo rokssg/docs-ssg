@@ -30,12 +30,14 @@ type ModalType = ReturnType<typeof useModal>;
 interface DocToolBoxLicenceProps {
   doc: Doc;
   modalHistory: ModalType;
+  modalDuplicate: ModalType;
   modalShare: ModalType;
 }
 
 export const DocToolBoxLicenceMIT = ({
   doc,
   modalHistory,
+  modalDuplicate,
   modalShare,
 }: DocToolBoxLicenceProps) => {
   const { t } = useTranslation();
@@ -89,6 +91,15 @@ export const DocToolBoxLicenceMIT = ({
       disabled: !doc.abilities.versions_list,
       callback: () => {
         modalHistory.open();
+      },
+      show: isDesktop,
+    },
+    {
+      label: t('Duplicate document'),
+      icon: 'file_copy',
+      disabled: !doc.abilities.duplicate,
+      callback: () => {
+        modalDuplicate.open();
       },
       show: isDesktop,
     },

@@ -12,11 +12,13 @@ import {
 
 interface DocsGridActionsProps {
   doc: Doc;
+  openDuplicateModal?: () => void;
   openShareModal?: () => void;
 }
 
 export const DocsGridActions = ({
   doc,
+  openDuplicateModal,
   openShareModal,
 }: DocsGridActionsProps) => {
   const { t } = useTranslation();
@@ -51,6 +53,15 @@ export const DocsGridActions = ({
       },
 
       testId: `docs-grid-actions-share-${doc.id}`,
+    },
+    {
+      label: t('Duplicate'),
+      icon: 'file_copy',
+      callback: () => {
+        openDuplicateModal?.();
+      },
+
+      testId: `docs-grid-actions-duplicate-${doc.id}`,
     },
 
     {
