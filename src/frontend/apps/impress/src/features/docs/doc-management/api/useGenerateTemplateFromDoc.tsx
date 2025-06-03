@@ -20,7 +20,10 @@ export const generateTemplateFromDoc = async ({
   });
 
   if (!response.ok) {
-    throw new APIError('Failed to generate template', await errorCauses(response));
+    throw new APIError(
+      'Failed to generate template',
+      await errorCauses(response),
+    );
   }
 
   return response.json() as Promise<Template>;

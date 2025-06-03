@@ -28,7 +28,6 @@ export const DocsGridActions = ({
   const { toast } = useToastProvider();
   const generateTemplate = useGenerateTemplateFromDoc();
 
-
   const deleteModal = useModal();
 
   const removeFavoriteDoc = useDeleteFavoriteDoc({
@@ -78,10 +77,8 @@ export const DocsGridActions = ({
       disabled: !doc.abilities.destroy,
       testId: `docs-grid-actions-remove-${doc.id}`,
     },
-    
   ];
 
-  
   return (
     <>
       <DropdownMenu options={options}>
@@ -106,5 +103,3 @@ export const DocsGridActions = ({
     </>
   );
 };
-
-

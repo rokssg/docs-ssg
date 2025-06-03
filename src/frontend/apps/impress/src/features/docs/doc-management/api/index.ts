@@ -6,4 +6,4 @@ export * from './useDocs';
 export * from './useCreateFavoriteDoc';
 export * from './useUpdateDoc';
 export * from './useUpdateDocLink';
-export * from './useGenerateTemplateFromDoc'
+export * from './useGenerateTemplateFromDoc';

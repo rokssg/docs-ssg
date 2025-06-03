@@ -18,13 +18,18 @@ export const createDoc = async (): Promise<Doc> => {
   return response.json() as Promise<Doc>;
 };
 
-export const createDocFromTemplate = async (templateId: string): Promise<Doc> => {
+export const createDocFromTemplate = async (
+  templateId: string,
+): Promise<Doc> => {
   const response = await fetchAPI(`documents/template/${templateId}`, {
     method: 'POST',
   });
 
   if (!response.ok) {
-    throw new APIError('Failed to create the doc from template', await errorCauses(response));
+    throw new APIError(
+      'Failed to create the doc from template',
+      await errorCauses(response),
+    );
   }
 
   return response.json() as Promise<Doc>;
@@ -54,7 +59,7 @@ export function useCreateDocFromTemplate({ onSuccess }: CreateDocProps) {
     onSuccess: (data) => {
       void queryClient.resetQueries({
         queryKey: [KEY_LIST_DOC],
-      }); 
+      });
       onSuccess(data);
     },
   });

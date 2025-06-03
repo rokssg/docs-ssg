@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation';
 import { PropsWithChildren, useCallback, useState } from 'react';
 import { ModalAddTypeDoc } from '@/features/docs/doc-management/components/ModalAddTypeDoc';
 
-
 import { Box, Icon, SeparatedSection } from '@/components';
 import { useCreateDoc } from '@/docs/doc-management';
+import {
+  TemplatesOrdering,
+  useTemplates,
+} from '@/features/docs/doc-export/api/useTemplates';
 import { useCreateDocFromTemplate } from '@/docs/doc-management';
 import { DocSearchModal } from '@/docs/doc-search';
 import { useAuth } from '@/features/auth';
@@ -30,10 +33,9 @@ export const LeftPanelHeader = ({ children }: PropsWithChildren) => {
     setIsSearchModalOpen(true);
   }, []);
 
- // Split button dropdown state
+  // Split button dropdown state
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
 
   const closeSearchModal = useCallback(() => {
     setIsSearchModalOpen(false);
@@ -49,12 +51,13 @@ export const LeftPanelHeader = ({ children }: PropsWithChildren) => {
     },
   });
 
-  const { mutate: createDocFromTemplate, isPending: isCreatingDocTempl } = useCreateDocFromTemplate({
-    onSuccess: (doc) => {
-      router.push(`/docs/${doc.id}`);
-      togglePanel();
-    },
-  });
+  const { mutate: createDocFromTemplate, isPending: isCreatingDocTempl } =
+    useCreateDocFromTemplate({
+      onSuccess: (doc) => {
+        router.push(`/docs/${doc.id}`);
+        togglePanel();
+      },
+    });
 
   const goToHome = () => {
     router.push('/');
@@ -70,23 +73,13 @@ export const LeftPanelHeader = ({ children }: PropsWithChildren) => {
   };
 
   const [isAddTypeModalOpen, setAddTypeModalOpen] = useState(false);
-  // Example: Replace with your actual templates fetching logic
-  const templates = getTemplate(() => {
-                      const fetchTemplates = async () => {
-                        try {
-                          const response = await fetch('/api/v1.0/templates/'); // Adjust the endpoint if necessary
-                          if (!response.ok) {
-                            throw new Error('Failed to fetch templates');
-                          }
-                          const data = await response.json();
-                          setTemplates(data);
-                        } catch (error) {
-                          console.error('Error fetching templates:', error);
-                        }
-                      };
+  // Fetch templates from the API
+  const { data } = useDocumentTemplates({
+    ordering: TemplatesOrdering.BY_CREATED_ON,
+  });
 
-                      fetchTemplates();
-                    }, []);
+  // Extract templates or fallback to empty array
+  const templates = data?.pages?.[0]?.results || [];
 
   const openAddTypeModal = () => setAddTypeModalOpen(true);
   const closeAddTypeModal = () => setAddTypeModalOpen(false);
@@ -99,7 +92,10 @@ export const LeftPanelHeader = ({ children }: PropsWithChildren) => {
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     }
@@ -153,7 +149,7 @@ export const LeftPanelHeader = ({ children }: PropsWithChildren) => {
               >
                 <Button
                   onClick={createNewDoc}
-                  disabled={isCreatingDoc||isCreatingDocTempl}
+                  disabled={isCreatingDoc || isCreatingDocTempl}
                   style={{
                     borderTopRightRadius: 0,
                     borderBottomRightRadius: 0,
@@ -164,7 +160,7 @@ export const LeftPanelHeader = ({ children }: PropsWithChildren) => {
                 </Button>
                 <Button
                   onClick={() => setDropdownOpen((open) => !open)}
-                  disabled={isCreatingDoc||isCreatingDocTempl}
+                  disabled={isCreatingDoc || isCreatingDocTempl}
                   style={{
                     borderTopLeftRadius: 0,
                     borderBottomLeftRadius: 0,
@@ -178,8 +174,10 @@ export const LeftPanelHeader = ({ children }: PropsWithChildren) => {
                   }}
                   aria-label={t('More options')}
                 >
-                  <Icon iconName="arrow_drop_down" 
-                   style={{ color: '#F3F3F2' }}/>
+                  <Icon
+                    iconName="arrow_drop_down"
+                    style={{ color: '#F3F3F2' }}
+                  />
                 </Button>
                 {isDropdownOpen && (
                   <div
@@ -199,7 +197,7 @@ export const LeftPanelHeader = ({ children }: PropsWithChildren) => {
                         openAddTypeModal();
                         setDropdownOpen(false);
                       }}
-                      disabled={isCreatingDoc||isCreatingDocTempl}
+                      disabled={isCreatingDoc || isCreatingDocTempl}
                       style={{ width: '100%', justifyContent: 'flex-start' }}
                     >
                       {t('New from template')}
@@ -224,3 +222,9 @@ export const LeftPanelHeader = ({ children }: PropsWithChildren) => {
     </>
   );
 };
+function useDocumentTemplates(arg0: { ordering: TemplatesOrdering }): {
+  data: any;
+  isLoading: any;
+} {
+  throw new Error('Function not implemented.');
+}

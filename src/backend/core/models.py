@@ -1033,7 +1033,7 @@ class Document_Template(MP_Node, BaseModel):
 
     class Meta:
         db_table = "impress_document_template"
-        ordering = ("path",)
+        ordering = ("title",)
         verbose_name = _("Document_Template")
         verbose_name_plural = _("Document_Templates")
 

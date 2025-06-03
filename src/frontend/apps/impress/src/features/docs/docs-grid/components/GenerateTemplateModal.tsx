@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Modal, Button, Input } from '@openfun/cunningham-react';
-import { Box, Text } from '@/components'
+import { Modal, ModalSize, Button, Input } from '@openfun/cunningham-react';
+import { Box, Text } from '@/components';
 import { useTranslation } from 'react-i18next';
+import { useResponsiveStore } from '@/stores';
 
 interface GenerateTemplateModalProps {
   isOpen: boolean;
@@ -11,31 +12,39 @@ interface GenerateTemplateModalProps {
 }
 
 export const GenerateTemplateModal = ({
-  isOpen,
   initialTitle,
   onClose,
   onConfirm,
 }: GenerateTemplateModalProps) => {
   const { t } = useTranslation();
   const [title, setTitle] = useState(initialTitle);
+  const { isDesktop } = useResponsiveStore();
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t('Generate Template')}>
+    <Modal
+      isOpen
+      closeOnClickOutside
+      data-testid="doc-share-modal"
+      aria-label={t('Share modal')}
+      size={isDesktop ? ModalSize.LARGE : ModalSize.FULL}
+      onClose={onClose}
+      title={<Box $align="flex-start">{t('Generate Template')}</Box>}
+    >
       <Box $direction="column" $gap="md">
         <Text>{t('Edit the template title if needed:')}</Text>
         <Input
           value={title}
-          onChange={e => setTitle(e.target.value)}
+          onChange={(e) => setTitle(e.target.value)}
           placeholder={t('Template title')}
           autoFocus
         />
         <Box $direction="row" $gap="sm" $justify="flex-end">
-          <Button onClick={onClose} $variation="secondary">
+          <Button onClick={onClose} color="secondary">
             {t('Cancel')}
           </Button>
           <Button
             onClick={() => onConfirm(title)}
-            $variation="primary"
+            color="primary"
             disabled={!title.trim()}
           >
             {t('Generate')}

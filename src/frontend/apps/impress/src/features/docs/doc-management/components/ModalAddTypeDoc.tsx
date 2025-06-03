@@ -29,13 +29,19 @@ export const ModalAddTypeDoc = ({
   templates,
 }: ModalAddTypeDocProps) => {
   const { toast } = useToastProvider();
-  const [selectedTemplate, setSelectedTemplate] = useState<string>(templates[0]?.id || '');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(
+    templates[0]?.id || '',
+  );
 
   const handleConfirm = () => {
     onConfirm(selectedTemplate);
-    toast(t('The document will be created from the selected template.'), VariantType.SUCCESS, {
-      duration: 4000,
-    });
+    toast(
+      t('The document will be created from the selected template.'),
+      VariantType.SUCCESS,
+      {
+        duration: 4000,
+      },
+    );
   };
 
   return (
@@ -66,7 +72,13 @@ export const ModalAddTypeDoc = ({
       }
       size={ModalSize.SMALL}
       title={
-        <Text $size="h6" as="h6" $margin={{ all: '0' }} $align="flex-start" $variation="1000">
+        <Text
+          $size="h6"
+          as="h6"
+          $margin={{ all: '0' }}
+          $align="flex-start"
+          $variation="1000"
+        >
           {t('Create a new doc')}
         </Text>
       }
@@ -76,14 +88,18 @@ export const ModalAddTypeDoc = ({
           {t('Choose a template to create your new document:')}
         </Text>
         <Select
-                  aria-label={t('Select template')}
-                  options={templates.map((tpl) => ({
-                      label: tpl.name,
-                      value: tpl.id,
-                  }))}
-                  value={selectedTemplate}
-                  onChange={(e) => setSelectedTemplate((e.target.value ?? '').toString())}
-                  fullWidth label={''}        />
+          aria-label={t('Select template')}
+          options={templates.map((tpl) => ({
+            label: tpl.name,
+            value: tpl.id,
+          }))}
+          value={selectedTemplate}
+          onChange={(e) =>
+            setSelectedTemplate((e.target.value ?? '').toString())
+          }
+          fullWidth
+          label={''}
+        />
       </Box>
     </Modal>
   );
