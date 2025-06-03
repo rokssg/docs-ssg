@@ -1,3 +1,54 @@
+<#
+    .SYNOPSIS
+    Script PowerShell pour gérer les tâches de développement d'un projet Docker avec Django et Node.js.
+
+    .DESCRIPTION
+    Ce script permet de configurer l'environnement de développement, de gérer les migrations de base de données,
+    de créer des données de démonstration, de compiler les fichiers de traduction, d'installer et de construire les mails,
+    et de lancer les services backend et frontend via Docker Compose.
+
+    .PARAMETER Bootstrap
+    Exécute toutes les étapes de préparation du projet : création des répertoires, copie des fichiers d'environnement,
+    construction des images Docker, migration de la base de données, création de données de démonstration,
+    compilation des fichiers de traduction, installation et construction des mails, et lancement des services.
+    
+    .PARAMETER Data-Media
+    Crée le répertoire `data/media` s'il n'existe pas.
+
+    .PARAMETER Data-Static
+    Crée le répertoire `data/static` s'il n'existe pas.
+
+    .PARAMETER Create-Env-Files
+    Copie les fichiers d'environnement de développement par défaut dans le répertoire `env.d/development`.
+
+    .PARAMETER Build
+    Construit les images Docker pour l'application de développement, le fournisseur Y, et le frontend sans utiliser le cache.
+
+    .PARAMETER Migrate
+    Démarre le service PostgreSQL et exécute les migrations de la base de données via Django.
+
+    .PARAMETER Demo
+    Réinitialise la base de données et crée des données de démonstration via Django.
+
+    .PARAMETER Back-I18n-Compile
+    Compile les fichiers de traduction pour l'application backend en ignorant le répertoire `venv`.
+
+    .PARAMETER Mails-Install
+    Installe les dépendances Node.js pour le service de mails.
+
+    .PARAMETER Mails-Build
+    Construit les fichiers de mails à partir des sources Node.js.
+
+    .PARAMETER Run
+    Démarre les services backend (Celery, fournisseur Y, Nginx) et le service frontend via Docker Compose.
+
+    .PARAMETER Run-Backend
+    Démarre uniquement les services backend (Celery, fournisseur Y, Nginx) via Docker Compose.
+
+    .PARAMETER Superuser
+    Crée un superutilisateur Django avec les identifiants par défaut (email:
+#>
+
 # Makefile.ps1 - Script PowerShell pour gérer les tâches de développement
 function Bootstrap {
     Data-Media
