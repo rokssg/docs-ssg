@@ -179,7 +179,7 @@ function Install-NodeJS {
         exit 1
     }
     Write-Host "Installing Node.js..."
-    Start-Process msiexec.exe -Wait -ArgumentList @("/i", $outputPath, "/qn", "/norestart")
+    Start-Process msiexec.exe -Wait -ArgumentList @("/i", $outputPath, "/qn", "/norestart", "/l*v!", "$env:TEMP\node-install.log")
     # Clean up the installer file
     Remove-Item $outputPath -Force
     $nodeVersion = node -v
