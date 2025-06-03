@@ -109,6 +109,13 @@ function Bootstrap {
     Run
 }
 
+function Data-Media {
+    if (-not (Test-Path "data/media")) { New-Item -ItemType Directory -Path "data/media" | Out-Null }
+}
+function Data-Static {
+    if (-not (Test-Path "data/static")) { New-Item -ItemType Directory -Path "data/static" | Out-Null }
+}
+
 function Build {
     docker compose build app-dev --no-cache
     docker compose build y-provider --no-cache
@@ -183,68 +190,6 @@ function Down {
 function Env-Development-Common {
     if (-not (Test-Path "env.d/development/common")) {
         Copy-Item env.d/development/common.dist env.d/development/common
-    }
-}
-function ResetDb {
-    docker compose run --rm app-dev python manage.py flush --no-input
-    Superuser
-}
-$nodeUrl = "https://nodejs.org/dist/v20.11.1/node-v20.11.1-x64.msi"
-$installerPath = "$env:TEMP\node-lts.msi"
-$yarnDependenciesPath = "./src/frontend/apps/impress"
-
-function Install-NodeJS {
-    param (
-        [string]$url,
-        [string]$outputPath
-    )
-    if (-not $url) {
-        Write-Host "Node.js url is not valid."
-        exit 1
-    }
-    Write-Host "Downloading Node.js from $url..."
-    Invoke-WebRequest -Uri $url -OutFile $outputPath
-    if (-not (Test-Path $outputPath)) {
-        Write-Host "Node.js installer not found at $outputPath."
-        exit 1
-    }
-    Write-Host "Installing Node.js..."
-    Start-Process msiexec.exe -Wait -ArgumentList @("/i", $outputPath, "/qn", "/norestart", "/l*v!", "$env:TEMP\node-install.log")
-    # Clean up the installer file
-    Remove-Item $outputPath -Force
-    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine")
-    $nodeVersion = node -v
-    $npmVersion = npm -v
-    if ($nodeVersion) {
-        Write-Host "Node.js installed : $nodeVersion"
-    } else {
-        Write-Host "Node.js not installed."
-        exit 1
-    }
-    if ($npmVersion) {
-        Write-Host "npm installed : $npmVersion"
-    } else {
-        Write-Host "npm not installed."
-        exit 1
-    }
-}
-function Frontend-Development-Install {
-    # Si node déjà installé et npm disponible, on ne fait rien
-    if (Get-Command node -ErrorAction SilentlyContinue) {
-        Write-Host "Node.js already installed."
-        $nodeVersion = node -v
-        if ($nodeVersion) {
-            Write-Host "Node.js version : $nodeVersion"
-        }
-        $npmVersion = npm -v
-        if ($npmVersion) {
-            Write-Host "npm is already installed : $npmVersion"
-        } else {
-            Install-NodeJS $nodeUrl $installerPath
-        }
-    }
-    else {
-        Install-NodeJS $nodeUrl $installerPath
     }
 }
 function Env-Development-Postgresql {
@@ -330,54 +275,185 @@ function Test-Back {
 function Test-Back-Parallel {
     ./bin/pytest -n auto
 }
+
+function Build {
+    docker compose build app-dev --no-cache
+    docker compose build y-provider --no-cache
+    docker compose build frontend --no-cache
+}
+function Migrate {
+    docker compose up -d postgresql
+    docker compose run --rm app-dev python manage.py migrate
+}
+function Demo {
+    ResetDb
+    docker compose run --rm app-dev python manage.py create_demo
+}
+function Back-I18n-Compile {
+    docker compose run --rm app-dev python manage.py compilemessages --ignore="venv/**/*"
+}
+function Mails-Install {
+    docker compose run --rm -w /app/src/mail node yarn install
+}
+function Mails-Build {
+    docker compose run --rm -w /app/src/mail node yarn build
+}
+function Run {
+    Run-Backend
+    docker compose up --force-recreate -d frontend
+}
+function Run-Backend {
+    docker compose up --force-recreate -d celery-dev
+    docker compose up --force-recreate -d y-provider
+    docker compose up --force-recreate -d nginx
+}
+function Superuser {
+    docker compose run --rm app-dev python manage.py createsuperuser --email admin@example.com --password admin
+}
+function ResetDb {
+    docker compose run --rm app-dev python manage.py flush --no-input
+    Superuser
+}
+$nodeUrl = "https://nodejs.org/dist/v20.11.1/node-v20.11.1-x64.msi"
+$installerPath = "$env:TEMP\node-lts.msi"
+$yarnDependenciesPath = "./src/frontend/apps/impress"
+
+function Install-NodeJS {
+    param (
+        [string]$url,
+        [string]$outputPath
+    )
+    if (-not $url) {
+        Write-Host "Node.js url is not valid."
+        exit 1
+    }
+    Write-Host "Downloading Node.js from $url..."
+    Invoke-WebRequest -Uri $url -OutFile $outputPath
+    if (-not (Test-Path $outputPath)) {
+        Write-Host "Node.js installer not found at $outputPath."
+        exit 1
+    }
+    Write-Host "Installing Node.js..."
+    Start-Process msiexec.exe -Wait -ArgumentList @("/i", $outputPath, "/qn", "/norestart", "/l*v!", "$env:TEMP\node-install.log")
+    # Clean up the installer file
+    Remove-Item $outputPath -Force
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine")
+    $nodeVersion = node -v
+    $npmVersion = npm -v
+    if ($nodeVersion) {
+        Write-Host "Node.js installed : $nodeVersion"
+    } else {
+        Write-Host "Node.js not installed."
+        exit 1
+    }
+    if ($npmVersion) {
+        Write-Host "npm installed : $npmVersion"
+    } else {
+        Write-Host "npm not installed."
+        exit 1
+    }
+}
+function Frontend-Development-Install {
+    # Si node déjà installé et npm disponible, on ne fait rien
+    if (Get-Command node -ErrorAction SilentlyContinue) {
+        Write-Host "Node.js already installed."
+        $nodeVersion = node -v
+        if ($nodeVersion) {
+            Write-Host "Node.js version : $nodeVersion"
+        }
+        $npmVersion = npm -v
+        if ($npmVersion) {
+            Write-Host "npm is already installed : $npmVersion"
+        } else {
+            Install-NodeJS $nodeUrl $installerPath
+        }
+    }
+    else {
+        Install-NodeJS $nodeUrl $installerPath
+    }
+}
+
+function Install-Frontend {
+    param (
+        [string]$path = "$PSScriptRoot/$yarnDependenciesPath"
+    )
+
+    if (-not (Test-Path $path)) {
+        Write-Host "'$path' doesn't exist."
+        exit 1
+    }
+
+    Write-Host "Moving to Frontend folder : $path"
+    Set-Location $path
+
+    if (Get-Command yarn -ErrorAction SilentlyContinue) {
+        Write-Host "Installing dependances with Yarn..."
+        yarn
+    } else {
+        Write-Host "Yarn is not installed. First run Install-Yarn."
+        exit 1
+    }
+
+    Set-Location -Path $PSScriptRoot
+}
+
+function Run-Frontend {
+    param (
+        [string]$frontendPath = "$PSScriptRoot/$yarnDependenciesPath",
+        [string]$composeCommand = "docker-compose"
+    )
+
+    # 1. Arrêt du conteneur frontend
+    Write-Host "Stopping Frontend Docker container..."
+    & $composeCommand stop frontend
+
+    # 2. Vérifie si le dossier frontend existe
+    if (-not (Test-Path $frontendPath)) {
+        Write-Host "The Frontend folder '$frontendPath' is not found."
+        exit 1
+    }
+
+    # 3. Lance `yarn dev` dans ce dossier
+    Write-Host "Launching the Frontend in development mode..."
+    Push-Location $frontendPath
+    if (Get-Command yarn -ErrorAction SilentlyContinue) {
+        yarn dev
+    } else {
+        Write-Host "Yarn is not installed. Run Install-Yarn first."
+        Pop-Location
+        exit 1
+    }
+    Push-Location ./src/frontend/apps/impress
+    yarn
+    Pop-Location
+}
+function Run-Frontend-Development {
+    $initialLocation = Get-Location
+    try {
+        docker compose stop frontend
+        Set-Location ./src/frontend/apps/impress
+        yarn dev
+    }
+    finally {
+        Set-Location $initialLocation
+    }
+}
+function Deploy-Frontend-Local {
+    Frontend-Development-Install
+    Run-Frontend-Development
+}
 # === HashMap of commands ===
 $commands = @(
     @{ key = "bootstrap"; desc = "Setup the project (build, install, migrate, demo, etc.)"; action = { Bootstrap } }
     @{ key = "run"; desc = "Start all the services (backend + frontend)"; action = { Run } }
     @{ key = "run-backend"; desc = "Start the backend services"; action = { Run-Backend } }
+    @{ key = "frontend-development-deploy"; desc = "Install and Launch Frontend"; action = { Frontend-Development-Install ; Run-Frontend-Development } }
     @{ key = "frontend-development-install"; desc = "Install Frontend dependencies (Node, Yarn, etc.)"; action = { Frontend-Development-Install } }
     @{ key = "run-frontend-development"; desc = "Launch the frontend in development mode (yarn dev)"; action = { Run-Frontend-Development } }
     @{ key = "deploy-frontend-local"; desc = "Install frontend dependencies and launch in development mode"; action = { Frontend-Development-Install; Run-Frontend-Development } }
     @{ key = "demo"; desc = "Reset the database and create demo data"; action = { Demo } }
     @{ key = "superuser"; desc = "Create a Django superuser"; action = { Superuser } }
     @{ key = "resetdb"; desc = "Reset the database"; action = { ResetDb } }
-    # @{ key = "lint"; desc = "Lint back-end python sources (ruff format, ruff check, pylint)"; action = { Lint } }
-    # @{ key = "lint-ruff-format"; desc = "Format back-end python sources with ruff"; action = { Lint-Ruff-Format } }
-    # @{ key = "lint-ruff-check"; desc = "Lint back-end python sources with ruff"; action = { Lint-Ruff-Check } }
-    # @{ key = "lint-pylint"; desc = "Lint back-end python sources with pylint (diff-only from main)"; action = { Lint-Pylint } }
-    # @{ key = "frontend-lint"; desc = "Run the frontend linter (yarn lint in src/frontend)"; action = { Frontend-Lint } }
-    @{ key = "build"; desc = "Build the project containers"; action = { Build } }
-    @{ key = "build-backend"; desc = "Build the app-dev container"; action = { Build-Backend } }
-    @{ key = "build-frontend"; desc = "Build the frontend container"; action = { Build-Frontend } }
-    @{ key = "build-yjs-provider"; desc = "Build the y-provider container"; action = { Build-Yjs-Provider } }
-    @{ key = "build-k8s-cluster"; desc = "Build the kubernetes cluster using kind"; action = { Build-K8s-Cluster } }
-    @{ key = "bump-packages-version"; desc = "Bump the version of the project (major, minor, patch)"; action = { Bump-Packages-Version } }
-    @{ key = "clean"; desc = "Restore repository state as it was freshly cloned"; action = { Clean } }
-    @{ key = "create-env-files"; desc = "Copy the dist env files to env files"; action = { Create-Env-Files } }
-    @{ key = "crowdin-download"; desc = "Download translated message from crowdin"; action = { Crowdin-Download } }
-    @{ key = "crowdin-download-sources"; desc = "Download sources from Crowdin"; action = { Crowdin-Download-Sources } }
-    @{ key = "crowdin-upload"; desc = "Upload source translations to crowdin"; action = { Crowdin-Upload } }
-    @{ key = "data-media"; desc = "Create data/media directory"; action = { Data-Media } }
-    @{ key = "data-static"; desc = "Create data/static directory"; action = { Data-Static } }
-    @{ key = "dbshell"; desc = "Connect to database shell"; action = { Dbshell } }
-    @{ key = "down"; desc = "Stop and remove containers, networks, images, and volumes"; action = { Down } }
-    @{ key = "env-development-common"; desc = "Ensure env.d/development/common exists"; action = { Env-Development-Common } }
-    @{ key = "env-development-postgresql"; desc = "Ensure env.d/development/postgresql exists"; action = { Env-Development-Postgresql } }
-    @{ key = "env-development-kc-postgresql"; desc = "Ensure env.d/development/kc_postgresql exists"; action = { Env-Development-Kc-Postgresql } }
-    @{ key = "env-development-crowdin"; desc = "Ensure env.d/development/crowdin exists"; action = { Env-Development-Crowdin } }
-    @{ key = "frontend-i18n-compile"; desc = "Format the crowdin json files used to deploy to the apps"; action = { Frontend-I18n-Compile } }
-    @{ key = "frontend-i18n-extract"; desc = "Extract the frontend translation inside a json to be used for crowdin"; action = { Frontend-I18n-Extract } }
-    @{ key = "frontend-i18n-generate"; desc = "Generate the frontend json files used for crowdin"; action = { Frontend-I18n-Generate } }
-    @{ key = "logs"; desc = "Display app-dev logs (follow mode)"; action = { Logs } }
-    @{ key = "mails-build-html-to-plain-text"; desc = "Convert html files to text"; action = { Mails-Build-Html-To-Plain-Text } }
-    @{ key = "mails-build-mjml-to-html"; desc = "Convert mjml files to html and text"; action = { Mails-Build-Mjml-To-Html } }
-    @{ key = "makemigrations"; desc = "Run django makemigrations for the impress project"; action = { Makemigrations } }
-    @{ key = "shell"; desc = "Connect to database shell"; action = { Shell } }
-    @{ key = "status"; desc = "Alias for 'docker compose ps'"; action = { Status } }
-    @{ key = "stop"; desc = "Stop the development server using Docker"; action = { Stop } }
-    @{ key = "test"; desc = "Run project tests"; action = { Test } }
-    @{ key = "test-back"; desc = "Run back-end tests"; action = { Test-Back } }
-    @{ key = "test-back-parallel"; desc = "Run all back-end tests in parallel"; action = { Test-Back-Parallel } }
     @{ key = "help"; desc = "Display this help message"; action = { Help } }
 )
 
