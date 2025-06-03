@@ -183,6 +183,8 @@ function Down {
 function Env-Development-Common {
     if (-not (Test-Path "env.d/development/common")) {
         Copy-Item env.d/development/common.dist env.d/development/common
+    }
+}
 function ResetDb {
     docker compose run --rm app-dev python manage.py flush --no-input
     Superuser
