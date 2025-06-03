@@ -207,16 +207,76 @@ function Frontend-Development-Install {
             Write-Host "npm n'est pas installé, installation de Node.js..."
             Install-NodeJS $nodeUrl $installerPath
         }
+    } else {
+        Write-Host "npm n'est pas disponible pour installer Yarn."
+        exit 1
+    }
+}
+
+function Install-Frontend {
+    param (
+        [string]$path = "$PSScriptRoot/$yarnDependenciesPath"
+    )
+
+    if (-not (Test-Path $path)) {
+        Write-Host "Le dossier '$path' n'existe pas."
+        exit 1
+    }
+
+    Write-Host "Déplacement dans le dossier frontend : $path"
+    Set-Location $path
+
+    if (Get-Command yarn -ErrorAction SilentlyContinue) {
+        Write-Host "Installation des dépendances avec Yarn..."
+        yarn
+    } else {
+        Write-Host "Yarn n'est pas installé. Exécutez d'abord Install-Yarn."
+        exit 1
+    }
+
+    Set-Location -Path $PSScriptRoot
+}
+
+function Run-Frontend {
+    param (
+        [string]$frontendPath = "$PSScriptRoot/$yarnDependenciesPath",
+        [string]$composeCommand = "docker-compose"
+    )
+
+    # 1. Arrêt du conteneur frontend
+    Write-Host "Arrêt du conteneur Docker frontend..."
+    & $composeCommand stop frontend
+
+    # 2. Vérifie si le dossier frontend existe
+    if (-not (Test-Path $frontendPath)) {
+        Write-Host "Le dossier frontend '$frontendPath' est introuvable."
+        exit 1
+    }
+
+    # 3. Lance `yarn dev` dans ce dossier
+    Write-Host "Lancement du frontend en mode développement..."
+    Push-Location $frontendPath
+    if (Get-Command yarn -ErrorAction SilentlyContinue) {
+        yarn dev
+    } else {
+        Write-Host "Yarn n'est pas installé. Exécutez Install-Yarn d'abord."
+        Pop-Location
+        exit 1
     }
     Push-Location ./src/frontend/apps/impress
     yarn
     Pop-Location
 }
 function Run-Frontend-Development {
-    docker compose stop frontend
-    Push-Location ./src/frontend/apps/impress
-    yarn dev
-    Pop-Location
+    $initialLocation = Get-Location
+    try {
+        docker compose stop frontend
+        Set-Location ./src/frontend/apps/impress
+        yarn dev
+    }
+    finally {
+        Set-Location $initialLocation
+    }
 }
 function Deploy-Frontend-Local {
     Frontend-Development-Install
@@ -236,26 +296,71 @@ function Help {
     Write-Host "  help                        : Affiche cette aide"
 }
 
+function Show-Interactive-Menu {
+    Clear-Host
+    Write-Host "=========== MENU INTERACTIF ==========="
+    Write-Host "1. Install the Frontend (Node, Yarn, dependances)"
+    Write-Host "2. Launch the Frontend in dev mode"
+    Write-Host "3. Deploy le frontend"
+    Write-Host "4. Stopper le frontend (docker compose stop)"
+    Write-Host "5. Bootstrap complet (build + migrate + démo)"
+    Write-Host "6. Lancer le backend uniquement"
+    Write-Host "7. Réinitialiser la base (resetdb)"
+    Write-Host "0. Quitter"
+    Write-Host "======================================="
+}
+
+function Stop-Frontend {
+    Write-Host "Stopping Frontend container..."
+    docker compose stop frontend
+}
+
 # --- Dispatcher principal ---
 if ($args.Count -eq 0) {
-    Help
+    do {
+        Show-Interactive-Menu
+        $choice = Read-Host "Entrez un numéro"
+
+        switch ($choice) {
+            "1" { Frontend-Development-Install }
+            "2" { Frontend-Development-Install; Run-Frontend-Development }            
+            "3" { Run-Frontend-Development }
+            "4" { Stop-Frontend }
+            "5" { Bootstrap }
+            "6" { Run-Backend }
+            "7" { ResetDb }
+            "0" { Write-Host "Fin du script." }
+            default { Write-Host "Choix invalide. Réessayez." }
+        }
+
+        if ($choice -ne "0") {
+            Write-Host ""
+            Pause
+        }
+
+    } while ($choice -ne "0")
     exit 0
 }
 
+# Commandes directes via argument
 switch ($args[0]) {
-    "bootstrap"                   { Bootstrap }
-    "run"                         { Run }
-    "run-backend"                 { Run-Backend }
-    "frontend-development-install"{ Frontend-Development-Install }
-    "run-frontend-development"    { Run-Frontend-Development }
-    "deploy-frontend-local"       { Deploy-Frontend-Local }
-    "demo"                        { Demo }
-    "superuser"                   { Superuser }
-    "resetdb"                     { ResetDb }
-    "help"                        { Help }
-    default                       { Write-Host "Commande inconnue. Utilisez 'help'."; Help; exit 1 }
+    "bootstrap"                    { Bootstrap }
+    "run"                          { Run }
+    "run-backend"                  { Run-Backend }
+    "deploy-frontend-local"        { Frontend-Development-Install; Run-Frontend-Development }
+    "frontend-development-install" { Frontend-Development-Install }
+    "run-frontend-development"     { Run-Frontend-Development }
+    "demo"                         { Demo }
+    "superuser"                    { Superuser }
+    "resetdb"                      { ResetDb }
+    "help"                         { Help }
+    default                        {
+        Write-Host "Commande inconnue. Utilisez 'help'."
+        Help
+        exit 1
+    }
 }
 
-# Variables d'installation (non utilisées dans les commandes principales mais conservées pour extension)
+
 
 # Fin du script Makefile.ps1
