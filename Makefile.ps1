@@ -228,6 +228,25 @@ function Install-NodeJS {
         exit 1
     }
 }
+function Frontend-Development-Install {
+    # Si node déjà installé et npm disponible, on ne fait rien
+    if (Get-Command node -ErrorAction SilentlyContinue) {
+        Write-Host "Node.js already installed."
+        $nodeVersion = node -v
+        if ($nodeVersion) {
+            Write-Host "Node.js version : $nodeVersion"
+        }
+        $npmVersion = npm -v
+        if ($npmVersion) {
+            Write-Host "npm is already installed : $npmVersion"
+        } else {
+            Install-NodeJS $nodeUrl $installerPath
+        }
+    }
+    else {
+        Install-NodeJS $nodeUrl $installerPath
+    }
+}
 function Env-Development-Postgresql {
     if (-not (Test-Path "env.d/development/postgresql")) {
         Copy-Item env.d/development/postgresql.dist env.d/development/postgresql
