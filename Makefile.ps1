@@ -95,6 +95,7 @@
 
 # Makefile.ps1 - Script PowerShell pour gérer les tâches de développement
 
+# TODO rajouter au niveau du script une gestion intelligente de podman ou de docker dans le cas où un seul des deux outils est présent
 # TODO traiter le problème des entrypoint (retours à la ligne Windows vs Linux)
 function Bootstrap {
     Data-Media
@@ -318,6 +319,7 @@ $nodeUrl = "https://nodejs.org/dist/v20.11.1/node-v20.11.1-x64.msi"
 $installerPath = "$env:TEMP\node-lts.msi"
 $yarnDependenciesPath = "./src/frontend/apps/impress"
 
+# TODO fix the installation of Node.js : the command is not detected in the path for execution within the script
 function Install-NodeJS {
     param (
         [string]$url,
@@ -428,13 +430,17 @@ function Run-Frontend {
     Pop-Location
 }
 function Run-Frontend-Development {
+    Write-Host "Running Frontend in development mode..."
     $initialLocation = Get-Location
     try {
+        Write-Host "Stopping Frontend container..."
         docker compose stop frontend
         Set-Location ./src/frontend/apps/impress
+        Write-Host "Installing dependencies with Yarn and starting the application..."
         yarn dev
     }
     finally {
+        Write-Host "Returning to initial location..."
         Set-Location $initialLocation
     }
 }

@@ -164,6 +164,10 @@ $ make superuser
 
 #### Windows
 
+##### Pré requis complémentaire
+
+Installer **Node.js** dans la version **20.19.0** et **npm** en version **10.8.2**
+
 **Project bootstrap**
 
 The easiest way to start working on the project is to use the embedded PowerShell script:
