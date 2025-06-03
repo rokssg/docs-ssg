@@ -5,6 +5,7 @@ import { DropdownMenu, DropdownMenuOption, Icon } from '@/components';
 import {
   Doc,
   KEY_LIST_DOC,
+  ModalDuplicateDoc,
   ModalRemoveDoc,
   useCreateFavoriteDoc,
   useDeleteFavoriteDoc,
@@ -12,17 +13,16 @@ import {
 
 interface DocsGridActionsProps {
   doc: Doc;
-  openDuplicateModal?: () => void;
   openShareModal?: () => void;
 }
 
 export const DocsGridActions = ({
   doc,
-  openDuplicateModal,
   openShareModal,
 }: DocsGridActionsProps) => {
   const { t } = useTranslation();
 
+  const duplicateModal = useModal();
   const deleteModal = useModal();
 
   const removeFavoriteDoc = useDeleteFavoriteDoc({
@@ -57,10 +57,8 @@ export const DocsGridActions = ({
     {
       label: t('Duplicate'),
       icon: 'file_copy',
-      callback: () => {
-        openDuplicateModal?.();
-      },
-
+      callback: () => duplicateModal.open(),
+      disabled: !doc.abilities.duplicate,
       testId: `docs-grid-actions-duplicate-${doc.id}`,
     },
 
@@ -83,6 +81,10 @@ export const DocsGridActions = ({
           $variation="600"
         />
       </DropdownMenu>
+
+      {duplicateModal.isOpen && (
+        <ModalDuplicateDoc onClose={duplicateModal.onClose} doc={doc} />
+      )}
 
       {deleteModal.isOpen && (
         <ModalRemoveDoc onClose={deleteModal.onClose} doc={doc} />
