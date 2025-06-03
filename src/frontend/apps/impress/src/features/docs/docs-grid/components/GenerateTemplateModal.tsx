@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Modal, TextInput, Button } from '@openfun/cunningham-react';
-import { Box, Text } from '@/components'
+import { Modal, Button } from '@openfun/cunningham-react';
+import { Box, Text, TextInput } from '@/components'
 import { useTranslation } from 'react-i18next';
 
 interface GenerateTemplateModalProps {
