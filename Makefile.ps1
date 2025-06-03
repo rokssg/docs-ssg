@@ -169,47 +169,46 @@ function Install-NodeJS {
         [string]$outputPath
     )
     if (-not $url) {
-        Write-Host "L'URL de téléchargement de Node.js est invalide."
+        Write-Host "Node.js url is not valid."
         exit 1
     }
-    Write-Host "Téléchargement de Node.js LTS depuis $url..."
+    Write-Host "Installinging Node.js from $url..."
     Invoke-WebRequest -Uri $url -OutFile $outputPath
     if (-not (Test-Path $outputPath)) {
-        Write-Host "L'installateur de Node.js n'a pas été téléchargé correctement."
+        Write-Host "Node.js not correctly installed."
         exit 1
     }
-    Write-Host "Installation de Node.js..."
+    Write-Host "Installinging Node.js..."
     Start-Process msiexec.exe -Wait -ArgumentList @("/i", $outputPath, "/qn", "/norestart")
-    Write-Host "Nettoyage de l'installateur..."
     Remove-Item $outputPath -Force
     $nodeVersion = node -v
     $npmVersion = npm -v
     if ($nodeVersion) {
-        Write-Host "Node.js installé : $nodeVersion"
+        Write-Host "Node.js installed : $nodeVersion"
     } else {
-        Write-Host "Échec de l'installation de Node.js."
+        Write-Host "Node.js not installed."
         exit 1
     }
     if ($npmVersion) {
-        Write-Host "npm installé : $npmVersion"
+        Write-Host "npm installed : $npmVersion"
     } else {
-        Write-Host "Échec de l'installation de npm."
+        Write-Host "npm not installed."
         exit 1
     }
 }
 function Frontend-Development-Install {
     # Si node déjà installé et npm disponible, on ne fait rien
     if (Get-Command node -ErrorAction SilentlyContinue) {
-        Write-Host "Node.js est déjà installé."
+        Write-Host "Node.js already installed."
         $npmVersion = npm -v
         if ($npmVersion) {
-            Write-Host "npm est déjà installé : $npmVersion"
+            Write-Host "npm is already installed : $npmVersion"
         } else {
-            Write-Host "npm n'est pas installé, installation de Node.js..."
+            Write-Host "npm is not installed, installing Node.js..."
             Install-NodeJS $nodeUrl $installerPath
         }
     } else {
-        Write-Host "npm n'est pas disponible pour installer Yarn."
+        Write-Host "npm is not available to install Yarn."
         exit 1
     }
 }
@@ -220,7 +219,7 @@ function Install-Frontend {
     )
 
     if (-not (Test-Path $path)) {
-        Write-Host "Le dossier '$path' n'existe pas."
+        Write-Host "'$path' doesn't exist."
         exit 1
     }
 
@@ -228,10 +227,10 @@ function Install-Frontend {
     Set-Location $path
 
     if (Get-Command yarn -ErrorAction SilentlyContinue) {
-        Write-Host "Installation des dépendances avec Yarn..."
+        Write-Host "Installing dependances with Yarn..."
         yarn
     } else {
-        Write-Host "Yarn n'est pas installé. Exécutez d'abord Install-Yarn."
+        Write-Host "Yarn is not installed. First run Install-Yarn."
         exit 1
     }
 
@@ -245,22 +244,22 @@ function Run-Frontend {
     )
 
     # 1. Arrêt du conteneur frontend
-    Write-Host "Arrêt du conteneur Docker frontend..."
+    Write-Host "Stopping Frontend Docker container..."
     & $composeCommand stop frontend
 
     # 2. Vérifie si le dossier frontend existe
     if (-not (Test-Path $frontendPath)) {
-        Write-Host "Le dossier frontend '$frontendPath' est introuvable."
+        Write-Host "The Frontend folder '$frontendPath' is not found."
         exit 1
     }
 
     # 3. Lance `yarn dev` dans ce dossier
-    Write-Host "Lancement du frontend en mode développement..."
+    Write-Host "Launching the Frontend in development mode..."
     Push-Location $frontendPath
     if (Get-Command yarn -ErrorAction SilentlyContinue) {
         yarn dev
     } else {
-        Write-Host "Yarn n'est pas installé. Exécutez Install-Yarn d'abord."
+        Write-Host "Yarn is not installed. Run Install-Yarn first."
         Pop-Location
         exit 1
     }
@@ -285,16 +284,16 @@ function Deploy-Frontend-Local {
 }
 function Help {
     Write-Host "Commandes disponibles :"
-    Write-Host "  bootstrap                   : Prépare le projet (build, install, migrate, demo, etc.)"
-    Write-Host "  run                         : Démarre tous les services (backend + frontend)"
-    Write-Host "  run-backend                 : Démarre uniquement le backend"
-    Write-Host "  frontend-development-install: Installe les dépendances frontend"
-    Write-Host "  run-frontend-development    : Lance le frontend en mode développement"
-    Write-Host "  deploy-frontend-local       : Installe les dépendances frontend et lance le frontend en mode développement"
-    Write-Host "  demo                        : Remplit la base avec des données de démo"
-    Write-Host "  superuser                   : Crée un superuser Django"
-    Write-Host "  resetdb                     : Réinitialise la base et crée un superuser"
-    Write-Host "  help                        : Affiche cette aide"
+    Write-Host "  bootstrap                   : Setup the project (build, install, migrate, demo, etc.)"
+    Write-Host "  run                         : Start all the services (backend + frontend)"
+    Write-Host "  run-backend                 : Start the backend services"
+    Write-Host "  frontend-development-install: Install Frontend dependencies (Node, Yarn, etc.)"
+    Write-Host "  run-frontend-development    : Launch the frontend in development mode (yarn dev)"
+    Write-Host "  deploy-frontend-local       : Install Frontend dependencies and launch in development mode"
+    Write-Host "  demo                        : Reset the database and create demo data"
+    Write-Host "  superuser                   : Create a Django superuser"
+    Write-Host "  resetdb                     : Reset the database"
+    Write-Host "  help                        : Display this help message"
 }
 
 function Show-Interactive-Menu {
@@ -302,12 +301,12 @@ function Show-Interactive-Menu {
     Write-Host "=========== MENU INTERACTIF ==========="
     Write-Host "1. Install the Frontend (Node, Yarn, dependances)"
     Write-Host "2. Launch the Frontend in dev mode"
-    Write-Host "3. Deploy le frontend"
-    Write-Host "4. Stopper le frontend (docker compose stop)"
-    Write-Host "5. Bootstrap complet (build + migrate + démo)"
-    Write-Host "6. Lancer le backend uniquement"
-    Write-Host "7. Réinitialiser la base (resetdb)"
-    Write-Host "0. Quitter"
+    Write-Host "3. Deploy the Frontend"
+    Write-Host "4. Stop the frontend"
+    Write-Host "5. Full Bootstrap (build + migrate + demo)"
+    Write-Host "6. Launch the backend"
+    Write-Host "7. Reset the database"
+    Write-Host "0. Leave"
     Write-Host "======================================="
 }
 
@@ -320,7 +319,7 @@ function Stop-Frontend {
 if ($args.Count -eq 0) {
     do {
         Show-Interactive-Menu
-        $choice = Read-Host "Entrez un numéro"
+        $choice = Read-Host "Put a number to choose an action"
 
         switch ($choice) {
             "1" { Frontend-Development-Install }
@@ -330,8 +329,8 @@ if ($args.Count -eq 0) {
             "5" { Bootstrap }
             "6" { Run-Backend }
             "7" { ResetDb }
-            "0" { Write-Host "Fin du script." }
-            default { Write-Host "Choix invalide. Réessayez." }
+            "0" { Write-Host "End of the script." }
+            default { Write-Host "Invalid choice. Please retry." }
         }
 
         if ($choice -ne "0") {
@@ -356,7 +355,7 @@ switch ($args[0]) {
     "resetdb"                      { ResetDb }
     "help"                         { Help }
     default                        {
-        Write-Host "Commande inconnue. Utilisez 'help'."
+        Write-Host "Unknown command. Use 'help'."
         Help
         exit 1
     }
