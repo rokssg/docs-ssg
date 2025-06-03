@@ -93,7 +93,6 @@ build: cache ?= --no-cache
 build: ## build the project containers
 	@$(MAKE) build-backend cache=$(cache)
 	@$(MAKE) build-yjs-provider cache=$(cache)
-	@$(MAKE) build-frontend cache=$(cache)
 .PHONY: build
 
 build-backend: cache ?=
