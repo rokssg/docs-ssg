@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Modal, Button } from '@openfun/cunningham-react';
-import { Box, Text, TextInput } from '@/components'
+import { Modal, Button, Input } from '@openfun/cunningham-react';
+import { Box, Text } from '@/components'
 import { useTranslation } from 'react-i18next';
 
 interface GenerateTemplateModalProps {
@@ -23,7 +23,7 @@ export const GenerateTemplateModal = ({
     <Modal isOpen={isOpen} onClose={onClose} title={t('Generate Template')}>
       <Box $direction="column" $gap="md">
         <Text>{t('Edit the template title if needed:')}</Text>
-        <TextInput
+        <Input
           value={title}
           onChange={e => setTitle(e.target.value)}
           placeholder={t('Template title')}
