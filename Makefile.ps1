@@ -200,12 +200,26 @@ function Frontend-Development-Install {
     # Si node déjà installé et npm disponible, on ne fait rien
     if (Get-Command node -ErrorAction SilentlyContinue) {
         Write-Host "Node.js already installed."
+        $nodeVersion = node -v
+        if ($nodeVersion) {
+            Write-Host "Node.js version : $nodeVersion"
+        }
         $npmVersion = npm -v
         if ($npmVersion) {
             Write-Host "npm is already installed : $npmVersion"
         } else {
             Write-Host "npm is not installed, installing Node.js..."
             Install-NodeJS $nodeUrl $installerPath
+            Write-Host "npm is not installed and is required for the project."
+            $confirmation = Read-Host "Do you want to install Node.js automatically ? (O/N)"
+            if ($confirmation -eq "O" -or $confirmation -eq "o") {
+                Write-Host "Installation of Node.js..."
+                Install-NodeJS $nodeUrl $installerPath
+            } else {
+                Write-Host "Installation of Node.js aborted."
+                Write-Host "Please do install Node.js manually to proceed. Exiting the script."
+                exit 1
+            }
         }
     } else {
         Write-Host "npm is not available to install Yarn."
