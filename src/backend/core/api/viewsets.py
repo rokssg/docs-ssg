@@ -1634,8 +1634,8 @@ class TemplateViewSet(
     @drf.decorators.action(detail=True, methods=["post"], url_path="generate")
     def generate_template_from_doc(self, request, pk=None):
         """ 
-        POST /api/v1.0/templates/generate with expected data:
-        document_id: the id of the source document
+        POST /api/v1.0/{docId}/templates/generate with expected data:
+        docId: the id of the source document
         Return newly created template
         """
         document = self.get_object()
