@@ -237,7 +237,7 @@ function Install-Frontend {
         exit 1
     }
 
-    Write-Host "Déplacement dans le dossier frontend : $path"
+    Write-Host "Moving to Frontend folder : $path"
     Set-Location $path
 
     if (Get-Command yarn -ErrorAction SilentlyContinue) {
@@ -296,30 +296,34 @@ function Deploy-Frontend-Local {
     Frontend-Development-Install
     Run-Frontend-Development
 }
+# === HashMap of commands ===
+$commands = @(
+    @{ key = "bootstrap"; desc = "Setup the project (build, install, migrate, demo, etc.)"; action = { Bootstrap } }
+    @{ key = "run"; desc = "Start all the services (backend + frontend)"; action = { Run } }
+    @{ key = "run-backend"; desc = "Start the backend services"; action = { Run-Backend } }
+    @{ key = "frontend-development-install"; desc = "Install Frontend dependencies (Node, Yarn, etc.)"; action = { Frontend-Development-Install } }
+    @{ key = "run-frontend-development"; desc = "Launch the frontend in development mode (yarn dev)"; action = { Run-Frontend-Development } }
+    @{ key = "deploy-frontend-local"; desc = "Install frontend dependencies and launch in development mode"; action = { Frontend-Development-Install; Run-Frontend-Development } }
+    @{ key = "demo"; desc = "Reset the database and create demo data"; action = { Demo } }
+    @{ key = "superuser"; desc = "Create a Django superuser"; action = { Superuser } }
+    @{ key = "resetdb"; desc = "Reset the database"; action = { ResetDb } }
+    @{ key = "help"; desc = "Display this help message"; action = { Help } }
+)
+
 function Help {
-    Write-Host "Commandes disponibles :"
-    Write-Host "  bootstrap                   : Setup the project (build, install, migrate, demo, etc.)"
-    Write-Host "  run                         : Start all the services (backend + frontend)"
-    Write-Host "  run-backend                 : Start the backend services"
-    Write-Host "  frontend-development-install: Install Frontend dependencies (Node, Yarn, etc.)"
-    Write-Host "  run-frontend-development    : Launch the frontend in development mode (yarn dev)"
-    Write-Host "  deploy-frontend-local       : Install Frontend dependencies and launch in development mode"
-    Write-Host "  demo                        : Reset the database and create demo data"
-    Write-Host "  superuser                   : Create a Django superuser"
-    Write-Host "  resetdb                     : Reset the database"
-    Write-Host "  help                        : Display this help message"
+    Write-Host "`nAvailable commands :"
+    foreach ($cmd in $commands) {
+        Write-Host ("  {0,-30} : {1}" -f $cmd.key, $cmd.desc)
+    }
+    Write-Host ""
 }
 
 function Show-Interactive-Menu {
     Clear-Host
-    Write-Host "=========== MENU INTERACTIF ==========="
-    Write-Host "1. Install the Frontend (Node, Yarn, dependances)"
-    Write-Host "2. Launch the Frontend in dev mode"
-    Write-Host "3. Deploy the Frontend"
-    Write-Host "4. Stop the frontend"
-    Write-Host "5. Full Bootstrap (build + migrate + demo)"
-    Write-Host "6. Launch the backend"
-    Write-Host "7. Reset the database"
+    Write-Host "=========== INTERACTIVE MENU ==========="
+    for ($i = 0; $i -lt $commands.Count; $i++) {
+        Write-Host "$($i+1). $($commands[$i].desc)"
+    }
     Write-Host "0. Leave"
     Write-Host "======================================="
 }
@@ -329,52 +333,41 @@ function Stop-Frontend {
     docker compose stop frontend
 }
 
-# --- Dispatcher principal ---
+# === Menu interactif si aucune commande ===
 if ($args.Count -eq 0) {
     do {
         Show-Interactive-Menu
-        $choice = Read-Host "Put a number to choose an action"
+        $choice = Read-Host "Enter a command number (or 0 to exit)"
 
-        switch ($choice) {
-            "1" { Frontend-Development-Install }
-            "2" { Frontend-Development-Install; Run-Frontend-Development }            
-            "3" { Run-Frontend-Development }
-            "4" { Stop-Frontend }
-            "5" { Bootstrap }
-            "6" { Run-Backend }
-            "7" { ResetDb }
-            "0" { Write-Host "End of the script." }
-            default { Write-Host "Invalid choice. Please retry." }
+        if ($choice -eq "0") {
+            Write-Host "End of the script."
+            break
         }
 
-        if ($choice -ne "0") {
-            Write-Host ""
-            Pause
+        $index = [int]$choice - 1
+        if ($index -ge 0 -and $index -lt $commands.Count) {
+            & $commands[$index].action.Invoke()
+        } else {
+            Write-Host "Invalid choice. Please retry."
         }
 
-    } while ($choice -ne "0")
+        Write-Host ""
+        Pause
+
+    } while ($true)
+
     exit 0
 }
 
-# Commandes directes via argument
-switch ($args[0]) {
-    "bootstrap"                    { Bootstrap }
-    "run"                          { Run }
-    "run-backend"                  { Run-Backend }
-    "deploy-frontend-local"        { Frontend-Development-Install; Run-Frontend-Development }
-    "frontend-development-install" { Frontend-Development-Install }
-    "run-frontend-development"     { Run-Frontend-Development }
-    "demo"                         { Demo }
-    "superuser"                    { Superuser }
-    "resetdb"                      { ResetDb }
-    "help"                         { Help }
-    default                        {
-        Write-Host "Unknown command. Use 'help'."
-        Help
-        exit 1
-    }
+# === Exécution d'une commande par argument ===
+$matchedCommand = $commands | Where-Object { $_.key -eq $args[0] }
+if ($null -ne $matchedCommand) {
+    & $matchedCommand.action.Invoke()
+} else {
+    Write-Host "Unknown command. Use 'help'."
+    Help
+    exit 1
 }
 
 
-
-# Fin du script Makefile.ps1
+# End of Makefile.ps1 script
