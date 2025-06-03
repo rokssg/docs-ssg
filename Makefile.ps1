@@ -34,32 +34,29 @@
     de créer des données de démonstration, de compiler les fichiers de traduction, d'installer et de construire les mails,
     et de lancer les services backend et frontend via Docker Compose.
 
-    .PARAMETER bootstrap
-    Prépare le projet (build, install, migrate, demo, etc.).
+    .PARAMETER Bootstrap
+    Exécute une série de commandes pour initialiser l'environnement de développement, y compris la création de répertoires,
+    la construction des images Docker, les migrations de base de données, la création de données de démonstration,
+    la compilation des traductions, et l'installation des mails.
+    .PARAMETER Demo
+    Réinitialise la base de données et crée des données de démonstration en utilisant la commande `create_demo` de Django.
+    .PARAMETER Run
+    Démarre tous les services (backend et frontend) en utilisant Docker Compose.
+    .PARAMETER Run-Backend
+    Démarre les services backend (celery, yjs provider, nginx) en utilisant Docker Compose.
+    .PARAMETER Superuser
+    Crée un superutilisateur Django.
+    .PARAMETER ResetDb
+    Réinitialise la base de données en la vidant et en créant un superutilisateur.
+    .PARAMETER Frontend-Development-Install
+    Installe les dépendances du frontend en vérifiant si Node.js et Yarn sont installés, sinon les installe.
+    .PARAMETER Frontend-Development-Deploy
+    Installe les dépendances du frontend et lance le serveur de développement.
+    .PARAMETER Frontend-Development-Run
+    Lance le serveur de développement du frontend en utilisant Yarn.
+    .PARAMETER Help
+    Affiche l'aide et la liste des commandes disponibles dans le script.
 
-    .PARAMETER run
-    Démarre tous les services (backend + frontend) via Docker Compose.
-
-    .PARAMETER run-backend
-    Démarre uniquement les services backend (Celery, fournisseur Y, Nginx) via Docker Compose.
-
-    .PARAMETER frontend-development-install
-    Installe les dépendances frontend localement (yarn install dans le dossier approprié).
-
-    .PARAMETER run-frontend-development
-    Lance le frontend en mode développement local (yarn dev dans le dossier approprié, stoppe le conteneur frontend Docker).
-
-    .PARAMETER demo
-    Réinitialise la base de données et crée des données de démonstration via Django.
-
-    .PARAMETER superuser
-    Crée un superutilisateur Django avec les identifiants par défaut (admin@example.com / admin).
-
-    .PARAMETER resetdb
-    Réinitialise la base de données et crée un superutilisateur Django.
-
-    .PARAMETER help
-    Affiche la liste des commandes disponibles.
 #>
 
 # $BOLD := \033[1m
@@ -357,6 +354,7 @@ function Install-NodeJS {
 }
 function Frontend-Development-Install {
     # Si node déjà installé et npm disponible, on ne fait rien
+    Write-Host "Checking if Node.js and npm are installed..."
     if (Get-Command node -ErrorAction SilentlyContinue) {
         Write-Host "Node.js already installed."
         $nodeVersion = node -v
@@ -369,9 +367,6 @@ function Frontend-Development-Install {
         } else {
             Install-NodeJS $nodeUrl $installerPath
         }
-    }
-    else {
-        Install-NodeJS $nodeUrl $installerPath
     }
 }
 
@@ -407,7 +402,7 @@ function Run-Frontend {
 
     # 1. Arrêt du conteneur frontend
     Write-Host "Stopping Frontend Docker container..."
-    & $composeCommand stop frontend
+    # & $composeCommand stop frontend
 
     # 2. Vérifie si le dossier frontend existe
     if (-not (Test-Path $frontendPath)) {
@@ -430,14 +425,16 @@ function Run-Frontend {
     Pop-Location
 }
 function Run-Frontend-Development {
-    Write-Host "Running Frontend in development mode..."
+    Write-Host "Running Frontend in development mode (background)..."
     $initialLocation = Get-Location
     try {
-        Write-Host "Stopping Frontend container..."
-        docker compose stop frontend
         Set-Location ./src/frontend/apps/impress
-        Write-Host "Installing dependencies with Yarn and starting the application..."
-        yarn dev
+        Write-Host "Installing dependencies with Yarn (if needed)..."
+        yarn install
+        Write-Host "Starting 'yarn dev' in background..."
+        # Start-Process -NoNewWindow -FilePath "yarn" -ArgumentList "dev"
+        Start-Process -NoNewWindow -FilePath "node" -ArgumentList ".\node_modules\yarn\bin\yarn.js dev"
+        Write-Host "'yarn dev' started in background. You can continue working."
     }
     finally {
         Write-Host "Returning to initial location..."
@@ -453,10 +450,9 @@ $commands = @(
     @{ key = "bootstrap"; desc = "Setup the project (build, install, migrate, demo, etc.)"; action = { Bootstrap } }
     @{ key = "run"; desc = "Start all the services (backend + frontend)"; action = { Run } }
     @{ key = "run-backend"; desc = "Start the backend services"; action = { Run-Backend } }
-    @{ key = "frontend-development-deploy"; desc = "Install and Launch Frontend"; action = { Frontend-Development-Install ; Run-Frontend-Development } }
+    @{ key = "frontend-development-deploy"; desc = "Install and Launch Frontend"; action = { Frontend-Development-Install ; Run-Frontend } }
     @{ key = "frontend-development-install"; desc = "Install Frontend dependencies (Node, Yarn, etc.)"; action = { Frontend-Development-Install } }
-    @{ key = "run-frontend-development"; desc = "Launch the frontend in development mode (yarn dev)"; action = { Run-Frontend-Development } }
-    @{ key = "deploy-frontend-local"; desc = "Install frontend dependencies and launch in development mode"; action = { Frontend-Development-Install; Run-Frontend-Development } }
+    @{ key = "frontend-development-run"; desc = "Launch the frontend in development mode (yarn dev)"; action = { Run-Frontend } }
     @{ key = "demo"; desc = "Reset the database and create demo data"; action = { Demo } }
     @{ key = "superuser"; desc = "Create a Django superuser"; action = { Superuser } }
     @{ key = "resetdb"; desc = "Reset the database"; action = { ResetDb } }
@@ -486,7 +482,6 @@ function Stop-Frontend {
     docker compose stop frontend
 }
 
-# === Menu interactif si aucune commande ===
 if ($args.Count -eq 0) {
     do {
         Show-Interactive-Menu
@@ -499,11 +494,16 @@ if ($args.Count -eq 0) {
 
         $index = [int]$choice - 1
         if ($index -ge 0 -and $index -lt $commands.Count) {
-            $commands[$index].action.Invoke()
+            $action = $commands[$index].action
+            if ($action -is [scriptblock]) {
+                $action.Invoke()
+                Write-Host "Fin de la commande : $($commands[$index].key)"
+            } else {
+                Write-Host "Erreur : la commande n'est pas exécutable."
+            }
         } else {
             Write-Host "Invalid choice. Please retry."
         }
-
         Write-Host ""
         Pause
 
@@ -513,15 +513,20 @@ if ($args.Count -eq 0) {
 }
 
 # === Exécution d'une commande par argument ===
-Write-Host "Executing command: $($args[0])"
-foreach ($command in $commands) {
-    # Write-Host "Checking command: $($command.key)"
-    if ($command.key -eq $args[0]) {
-        Write-Host "Found command: $($command.key) - $($command.desc)"
-        $command.action.Invoke()
+$matchedCommand = $commands | Where-Object { $_.key -eq $args[0] }
+if ($null -ne $matchedCommand -and $matchedCommand.Count -gt 0) {
+    $action = $matchedCommand[0].action
+    if ($action -is [scriptblock]) {
+        & $action.Invoke()
+    } else {
+        Write-Host "Erreur : la commande '$($args[0])' n'est pas exécutable."
+        exit 1
     }
+} else {
+    Write-Host "Unknown command '$($args[0])'. Use '.\Makefile.ps1 help' to see available commands."
+    Help
+    exit 1
 }
-exit 0
 
 $matchedCommand = $commands | Where-Object { $_.key -eq $args[0] }
 if ($null -ne $matchedCommand -and $matchedCommand.Count -gt 0) {
