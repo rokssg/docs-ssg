@@ -183,6 +183,47 @@ function Down {
 function Env-Development-Common {
     if (-not (Test-Path "env.d/development/common")) {
         Copy-Item env.d/development/common.dist env.d/development/common
+function ResetDb {
+    docker compose run --rm app-dev python manage.py flush --no-input
+    Superuser
+}
+$nodeUrl = "https://nodejs.org/dist/v20.11.1/node-v20.11.1-x64.msi"
+$installerPath = "$env:TEMP\node-lts.msi"
+$yarnDependenciesPath = "./src/frontend/apps/impress"
+
+function Install-NodeJS {
+    param (
+        [string]$url,
+        [string]$outputPath
+    )
+    if (-not $url) {
+        Write-Host "Node.js url is not valid."
+        exit 1
+    }
+    Write-Host "Downloading Node.js from $url..."
+    Invoke-WebRequest -Uri $url -OutFile $outputPath
+    if (-not (Test-Path $outputPath)) {
+        Write-Host "Node.js installer not found at $outputPath."
+        exit 1
+    }
+    Write-Host "Installing Node.js..."
+    Start-Process msiexec.exe -Wait -ArgumentList @("/i", $outputPath, "/qn", "/norestart", "/l*v!", "$env:TEMP\node-install.log")
+    # Clean up the installer file
+    Remove-Item $outputPath -Force
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine")
+    $nodeVersion = node -v
+    $npmVersion = npm -v
+    if ($nodeVersion) {
+        Write-Host "Node.js installed : $nodeVersion"
+    } else {
+        Write-Host "Node.js not installed."
+        exit 1
+    }
+    if ($npmVersion) {
+        Write-Host "npm installed : $npmVersion"
+    } else {
+        Write-Host "npm not installed."
+        exit 1
     }
 }
 function Env-Development-Postgresql {
