@@ -182,6 +182,7 @@ function Install-NodeJS {
     Start-Process msiexec.exe -Wait -ArgumentList @("/i", $outputPath, "/qn", "/norestart", "/l*v!", "$env:TEMP\node-install.log")
     # Clean up the installer file
     Remove-Item $outputPath -Force
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine")
     $nodeVersion = node -v
     $npmVersion = npm -v
     if ($nodeVersion) {
