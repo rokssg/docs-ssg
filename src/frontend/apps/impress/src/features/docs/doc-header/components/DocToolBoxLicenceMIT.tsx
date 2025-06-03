@@ -10,6 +10,7 @@ import {
   Doc,
   KEY_DOC,
   KEY_LIST_DOC,
+  ModalDuplicateDoc,
   ModalRemoveDoc,
   useCopyDocLink,
   useCreateFavoriteDoc,
@@ -30,14 +31,12 @@ type ModalType = ReturnType<typeof useModal>;
 interface DocToolBoxLicenceProps {
   doc: Doc;
   modalHistory: ModalType;
-  modalDuplicate: ModalType;
   modalShare: ModalType;
 }
 
 export const DocToolBoxLicenceMIT = ({
   doc,
   modalHistory,
-  modalDuplicate,
   modalShare,
 }: DocToolBoxLicenceProps) => {
   const { t } = useTranslation();
@@ -45,6 +44,7 @@ export const DocToolBoxLicenceMIT = ({
 
   const { colorsTokens } = useCunninghamTheme();
 
+  const [isModalDuplicateOpen, setIsModalDuplicateOpen] = useState(false);
   const [isModalRemoveOpen, setIsModalRemoveOpen] = useState(false);
 
   const { isSmallMobile, isDesktop } = useResponsiveStore();
@@ -99,9 +99,8 @@ export const DocToolBoxLicenceMIT = ({
       icon: 'file_copy',
       disabled: !doc.abilities.duplicate,
       callback: () => {
-        modalDuplicate.open();
+        setIsModalDuplicateOpen(true);
       },
-      show: isDesktop,
     },
 
     {
@@ -164,6 +163,12 @@ export const DocToolBoxLicenceMIT = ({
 
       {modalShare.isOpen && (
         <DocShareModal onClose={() => modalShare.close()} doc={doc} />
+      )}
+      {isModalDuplicateOpen && (
+        <ModalDuplicateDoc
+          onClose={() => setIsModalDuplicateOpen(false)}
+          doc={doc}
+        />
       )}
       {isModalRemoveOpen && (
         <ModalRemoveDoc onClose={() => setIsModalRemoveOpen(false)} doc={doc} />
