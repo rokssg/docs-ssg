@@ -29,6 +29,7 @@ export const DocToolBox = ({ doc }: DocToolBoxProps) => {
   const { spacingsTokens } = useCunninghamTheme();
 
   const modalHistory = useModal();
+  const modalDuplicate = useModal();
   const modalShare = useModal();
 
   const { isSmallMobile } = useResponsiveStore();
@@ -102,6 +103,7 @@ export const DocToolBox = ({ doc }: DocToolBoxProps) => {
         <DocToolBoxLicence
           doc={doc}
           modalHistory={modalHistory}
+          modalDuplicate={modalDuplicate}
           modalShare={modalShare}
         />
       </Box>
