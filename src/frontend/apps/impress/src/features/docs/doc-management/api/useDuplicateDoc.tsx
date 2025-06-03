@@ -15,7 +15,7 @@ interface DuplicateDocProps {
 export const duplicateDoc = async ({
   docId,
 }: DuplicateDocProps): Promise<void> => {
-  const response = await fetchAPI(`documents/${docId}/duplicate`, {
+  const response = await fetchAPI(`documents/${docId}/duplicate/`, {
     method: 'POST',
   });
 
