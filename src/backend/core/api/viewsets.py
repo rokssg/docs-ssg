@@ -1465,8 +1465,7 @@ class DocumentViewSet(
                 {"error": f"Failed to fetch resource: {e!s}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-
+    
 class DocumentAccessViewSet(
     ResourceAccessViewsetMixin,
     viewsets.ModelViewSet,
@@ -1632,6 +1631,32 @@ class TemplateViewSet(
             user=self.request.user,
             role=models.RoleChoices.OWNER,
         )
+    @drf.decorators.action(detail=True, methods=["post"], url_path="generate")
+    def generate_template_from_doc(self, request, pk=None):
+        """ 
+        POST /api/v1.0/templates/generate with expected data:
+        document_id: the id of the source document
+        Return newly created template
+        """
+        document = self.get_object()
+        # You need to define how to extract HTML/CSS from your document
+        html_code = document.content  # or another field
+        css_code = ""  # extract if available
+
+        title = "Lorem Ipsum"
+        description = request.data.get("description", "")
+        data = {
+        "title": title,
+        "description": description,
+        "code": html_code,
+        "css": css_code,
+        "is_public": False,
+        }
+        serializer = TemplateViewSet.serializer_class(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)  # This will call perform_create if overridden
+        return drf.response.Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 
 class TemplateAccessViewSet(
@@ -1674,7 +1699,7 @@ class TemplateAccessViewSet(
     resource_field_name = "template"
     serializer_class = serializers.TemplateAccessSerializer
 
-
+        
 class InvitationViewset(
     drf.mixins.CreateModelMixin,
     drf.mixins.ListModelMixin,

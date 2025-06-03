@@ -47,7 +47,7 @@ ENV NEXT_PUBLIC_SW_DEACTIVATED=${SW_DEACTIVATED}
 ARG PUBLISH_AS_MIT
 ENV NEXT_PUBLIC_PUBLISH_AS_MIT=${PUBLISH_AS_MIT}
 
-RUN yarn build
+RUN yarn prettier --write && yarn build
 
 # ---- Front-end image ----
 FROM nginxinc/nginx-unprivileged:alpine3.21 AS frontend-production
