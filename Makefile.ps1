@@ -172,14 +172,15 @@ function Install-NodeJS {
         Write-Host "Node.js url is not valid."
         exit 1
     }
-    Write-Host "Installing Node.js from $url..."
+    Write-Host "Downloading Node.js from $url..."
     Invoke-WebRequest -Uri $url -OutFile $outputPath
     if (-not (Test-Path $outputPath)) {
-        Write-Host "Node.js not correctly installed."
+        Write-Host "Node.js installer not found at $outputPath."
         exit 1
     }
     Write-Host "Installing Node.js..."
     Start-Process msiexec.exe -Wait -ArgumentList @("/i", $outputPath, "/qn", "/norestart")
+    # Clean up the installer file
     Remove-Item $outputPath -Force
     $nodeVersion = node -v
     $npmVersion = npm -v
@@ -208,22 +209,11 @@ function Frontend-Development-Install {
         if ($npmVersion) {
             Write-Host "npm is already installed : $npmVersion"
         } else {
-            Write-Host "npm is not installed, installing Node.js..."
             Install-NodeJS $nodeUrl $installerPath
-            Write-Host "npm is not installed and is required for the project."
-            $confirmation = Read-Host "Do you want to install Node.js automatically ? (O/N)"
-            if ($confirmation -eq "O" -or $confirmation -eq "o") {
-                Write-Host "Installation of Node.js..."
-                Install-NodeJS $nodeUrl $installerPath
-            } else {
-                Write-Host "Installation of Node.js aborted."
-                Write-Host "Please do install Node.js manually to proceed. Exiting the script."
-                exit 1
-            }
         }
-    } else {
-        Write-Host "npm is not available to install Yarn."
-        exit 1
+    }
+    else {
+        Install-NodeJS $nodeUrl $installerPath
     }
 }
 
@@ -346,7 +336,7 @@ if ($args.Count -eq 0) {
 
         $index = [int]$choice - 1
         if ($index -ge 0 -and $index -lt $commands.Count) {
-            & $commands[$index].action.Invoke()
+            $commands[$index].action.Invoke()
         } else {
             Write-Host "Invalid choice. Please retry."
         }
