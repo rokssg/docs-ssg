@@ -67,6 +67,8 @@ You can test Docs on your browser by visiting this [demo document](https://impre
 
 ### Run Docs locally
 
+#### Linux / Mac OS
+
 > ⚠️ The methods described below for running Docs locally is **for testing purposes only**. It is based on building Docs using [Minio](https://min.io/) as an S3-compatible storage solution. Of course you can choose any S3-compatible storage solution.
 
 **Prerequisite**
@@ -156,6 +158,82 @@ You first need to create a superuser account:
 
 ```shellscript
 $ make superuser
+```
+
+#### Windows
+
+**Project bootstrap**
+
+The easiest way to start working on the project is to use the embedded PowerShell script:
+
+```powershell
+Makefile.ps1 bootstrap
+```
+<!-- $ Makefile.ps1 bootstrap FLUSH_ARGS='--no-input' -->
+
+This command builds the `app` container, installs dependencies, performs database migrations and compiles translations. It's a good idea to use this command each time you are pulling code from the project repository to avoid dependency-related or migration-related issues.
+
+Your Docker services should now be up and running 🎉
+
+You can access to the project by going to <http://localhost:3000>.
+
+You will be prompted to log in. The default credentials are:
+
+```
+username: impress
+password: impress
+```
+
+📝 Note that if you need to run them afterwards, you can use the eponym Make rule:
+
+```powershell
+Makefile.ps1 run
+```
+
+⚠️ For the frontend developer, it is often better to run the frontend in development mode locally.
+
+To do so, install the frontend dependencies with the following command:
+
+```powershell
+Makefile.ps1 frontend-development-install
+```
+
+And run the frontend locally in development mode with the following command:
+
+```powershell
+Makefile.ps1 run-frontend-development
+```
+
+To start all the services, except the frontend container, you can use the following command:
+
+```powershell
+Makefile.ps1 run-backend
+```
+
+**Adding content**
+
+You can create a basic demo site by running this command:
+
+```powershell
+Makefile.ps1 demo
+```
+
+Finally, you can check all available Make rules using this command:
+
+```powershell
+Makefile.ps1 help
+```
+
+**Django admin**
+
+You can access the Django admin site at:
+
+<http://localhost:8071/admin>.
+
+You first need to create a superuser account:
+
+```shellscript
+$ Makefile.ps1 superuser
 ```
 
 ## Feedback 🙋‍♂️🙋‍♀️
