@@ -4,7 +4,7 @@ import { t } from 'i18next';
 import { useRouter } from 'next/navigation';
 import { PropsWithChildren, useCallback, useState } from 'react';
 import { ModalAddTypeDoc } from '@/features/docs/doc-management/components/ModalAddTypeDoc';
-// import { useTemplates } from '@/docs/templates';
+ import { useTemplates } from '@/docs/templates';
 
 import { Box, Icon, SeparatedSection } from '@/components';
 import { useCreateDoc } from '@/docs/doc-management';
@@ -71,11 +71,8 @@ export const LeftPanelHeader = ({ children }: PropsWithChildren) => {
 
   const [isAddTypeModalOpen, setAddTypeModalOpen] = useState(false);
   // Example: Replace with your actual templates fetching logic
-  const templates = [
-    { id: 'tpl1', name: 'Blank' },
-    { id: 'tpl2', name: 'Report' },
-    { id: 'tpl3', name: 'Meeting Notes' },
-  ];
+  const { data: templatesData } = useTemplates({ ordering: TemplatesOrdering.BY_CREATED_ON });
+  const templates = templatesData?.pages.flatMap((page) => page.results) || [];
 
   const openAddTypeModal = () => setAddTypeModalOpen(true);
   const closeAddTypeModal = () => setAddTypeModalOpen(false);

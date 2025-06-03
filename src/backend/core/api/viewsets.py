@@ -5,7 +5,7 @@ import json
 import logging
 import uuid
 from urllib.parse import unquote, urlencode, urlparse
-
+from bs4 import BeautifulSoup
 from django.conf import settings
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.fields import ArrayField
@@ -1641,15 +1641,19 @@ class TemplateViewSet(
         document = self.get_object()
         # You need to define how to extract HTML/CSS from your document
         html_code = document.content  # or another field
-        css_code = ""  # extract if available
+        # Parse HTML to extract CSS if embedded
+        soup = BeautifulSoup(html_code, "html.parser")
+        css_content = "\n".join(
+            style_tag.string for style_tag in soup.find_all("style") if style_tag.string
+        )
 
-        title = "Lorem Ipsum"
+        title = document.title
         description = request.data.get("description", "")
         data = {
         "title": title,
         "description": description,
         "code": html_code,
-        "css": css_code,
+        "css": css_content,
         "is_public": False,
         }
         serializer = TemplateViewSet.serializer_class(data=data)
