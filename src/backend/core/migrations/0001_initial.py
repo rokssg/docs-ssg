@@ -67,6 +67,53 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name="Document_Templates",
+            fields=[
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        help_text="primary key for the record as UUID",
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True,
+                        help_text="date and time at which a record was created",
+                        verbose_name="created on",
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(
+                        auto_now=True,
+                        help_text="date and time at which a record was last updated",
+                        verbose_name="updated on",
+                    ),
+                ),
+                ("title", models.CharField(max_length=255, verbose_name="title")),
+                (
+                    "is_public",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Whether this document is public for anyone to use.",
+                        verbose_name="public",
+                    ),
+                ),
+            ],
+            options={
+                "verbose_name": "Document",
+                "verbose_name_plural": "Documents",
+                "db_table": "impress_document",
+                "ordering": ("title",),
+            },
+        ),
+        migrations.CreateModel(
             name="Template",
             fields=[
                 (

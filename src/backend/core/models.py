@@ -996,7 +996,452 @@ class Document(MP_Node, BaseModel):
                 numchild=models.F("numchild") + 1
             )
 
+class Document_Template(MP_Node, BaseModel):
+    """Pad document carrying the content."""
 
+    title = models.CharField(_("title"), max_length=255, null=True, blank=True)
+    excerpt = models.TextField(_("excerpt"), max_length=300, null=True, blank=True)
+    link_reach = models.CharField(
+        max_length=20,
+        choices=LinkReachChoices.choices,
+        default=LinkReachChoices.RESTRICTED,
+    )
+    link_role = models.CharField(
+        max_length=20, choices=LinkRoleChoices.choices, default=LinkRoleChoices.READER
+    )
+
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    ancestors_deleted_at = models.DateTimeField(null=True, blank=True)
+    attachments = ArrayField(
+        models.CharField(max_length=255),
+        default=list,
+        editable=False,
+        blank=True,
+        null=True,
+    )
+
+    _content = None
+
+    # Tree structure
+    alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    steplen = 7  # nb siblings max: 3,521,614,606,208
+    node_order_by = []  # Manual ordering
+
+    path = models.CharField(max_length=7 * 36, unique=True, db_collation="C")
+
+    objects = DocumentManager()
+
+    class Meta:
+        db_table = "impress_document_template"
+        ordering = ("path",)
+        verbose_name = _("Document_Template")
+        verbose_name_plural = _("Document_Templates")
+
+
+    def __str__(self):
+        return str(self.title) if self.title else str(_("Untitled Document"))
+
+    def save(self, *args, **kwargs):
+        """Write content to object storage only if _content has changed."""
+        super().save(*args, **kwargs)
+
+        if self._content:
+            file_key = self.file_key
+            bytes_content = self._content.encode("utf-8")
+
+            # Attempt to directly check if the object exists using the storage client.
+            try:
+                response = default_storage.connection.meta.client.head_object(
+                    Bucket=default_storage.bucket_name, Key=file_key
+                )
+            except ClientError as excpt:
+                # If the error is a 404, the object doesn't exist, so we should create it.
+                if excpt.response["Error"]["Code"] == "404":
+                    has_changed = True
+                else:
+                    raise
+            else:
+                # Compare the existing ETag with the MD5 hash of the new content.
+                has_changed = (
+                        response["ETag"].strip('"')
+                        != hashlib.md5(bytes_content).hexdigest()  # noqa: S324
+                )
+
+            if has_changed:
+                content_file = ContentFile(bytes_content)
+                default_storage.save(file_key, content_file)
+
+    @property
+    def key_base(self):
+        """Key base of the location where the document is stored in object storage."""
+        if not self.pk:
+            raise RuntimeError(
+                "The Template instance must be saved before requesting a storage key."
+            )
+        return str(self.pk)
+
+    @property
+    def file_key(self):
+        """Key of the object storage file to which the document content is stored"""
+        return f"{self.key_base}/file"
+
+    @property
+    def content(self):
+        """Return the json content from object storage if available"""
+        if self._content is None and self.id:
+            try:
+                response = self.get_content_response()
+            except (FileNotFoundError, ClientError):
+                pass
+            else:
+                self._content = response["Body"].read().decode("utf-8")
+        return self._content
+
+    @content.setter
+    def content(self, content):
+        """Cache the content, don't write to object storage yet"""
+        if not isinstance(content, str):
+            raise ValueError("content should be a string.")
+
+        self._content = content
+
+    def get_content_response(self, version_id=""):
+        """Get the content in a specific version of the document"""
+        params = {
+            "Bucket": default_storage.bucket_name,
+            "Key": self.file_key,
+        }
+        if version_id:
+            params["VersionId"] = version_id
+        return default_storage.connection.meta.client.get_object(**params)
+
+    def get_versions_slice(self, from_version_id="", min_datetime=None, page_size=None):
+        """Get document versions from object storage with pagination and starting conditions"""
+        # /!\ Trick here /!\
+        # The "KeyMarker" and "VersionIdMarker" fields must either be both set or both not set.
+        # The error we get otherwise is not helpful at all.
+        markers = {}
+        if from_version_id:
+            markers.update(
+                {"KeyMarker": self.file_key, "VersionIdMarker": from_version_id}
+            )
+
+        real_page_size = (
+            min(page_size, settings.DOCUMENT_VERSIONS_PAGE_SIZE)
+            if page_size
+            else settings.DOCUMENT_VERSIONS_PAGE_SIZE
+        )
+
+        response = default_storage.connection.meta.client.list_object_versions(
+            Bucket=default_storage.bucket_name,
+            Prefix=self.file_key,
+            # compensate the latest version that we exclude below and get one more to
+            # know if there are more pages
+            MaxKeys=real_page_size + 2,
+            **markers,
+        )
+
+        min_last_modified = min_datetime or self.created_at
+        versions = [
+            {
+                key_snake: version[key_camel]
+                for key_snake, key_camel in [
+                ("etag", "ETag"),
+                ("is_latest", "IsLatest"),
+                ("last_modified", "LastModified"),
+                ("version_id", "VersionId"),
+            ]
+            }
+            for version in response.get("Versions", [])
+            if version["LastModified"] >= min_last_modified
+               and version["IsLatest"] is False
+        ]
+        results = versions[:real_page_size]
+
+        count = len(results)
+        if count == len(versions):
+            is_truncated = False
+            next_version_id_marker = ""
+        else:
+            is_truncated = True
+            next_version_id_marker = versions[count - 1]["version_id"]
+
+        return {
+            "next_version_id_marker": next_version_id_marker,
+            "is_truncated": is_truncated,
+            "versions": results,
+            "count": count,
+        }
+
+    def delete_version(self, version_id):
+        """Delete a version from object storage given its version id"""
+        return default_storage.connection.meta.client.delete_object(
+            Bucket=default_storage.bucket_name, Key=self.file_key, VersionId=version_id
+        )
+
+    def get_nb_accesses_cache_key(self):
+        """Generate a unique cache key for each document."""
+        return f"template{self.id!s}_nb_accesses"
+
+    def get_nb_accesses(self):
+        """
+        Calculate the number of accesses:
+        - directly attached to the document
+        - attached to any of the document's ancestors
+        """
+        cache_key = self.get_nb_accesses_cache_key()
+        nb_accesses = cache.get(cache_key)
+
+        if nb_accesses is None:
+            nb_accesses = (
+                DocumentAccess.objects.filter(document=self).count(),
+                DocumentAccess.objects.filter(
+                    document__path=Left(
+                        models.Value(self.path), Length("document__path")
+                    ),
+                    document__ancestors_deleted_at__isnull=True,
+                ).count(),
+            )
+            cache.set(cache_key, nb_accesses)
+
+        return nb_accesses
+
+    @property
+    def nb_accesses_direct(self):
+        """Returns the number of accesses related to the document or one of its ancestors."""
+        return self.get_nb_accesses()[0]
+
+    @property
+    def nb_accesses_ancestors(self):
+        """Returns the number of accesses related to the document or one of its ancestors."""
+        return self.get_nb_accesses()[1]
+
+    def invalidate_nb_accesses_cache(self):
+        """
+        Invalidate the cache for number of accesses, including on affected descendants.
+        Args:
+            path: can optionally be passed as argument (useful when invalidating cache for a
+                document we just deleted)
+        """
+
+        for document in Document.objects.filter(path__startswith=self.path).only("id"):
+            cache_key = document.get_nb_accesses_cache_key()
+            cache.delete(cache_key)
+
+    def get_roles(self, user):
+        """Return the roles a user has on a document."""
+        if not user.is_authenticated:
+            return []
+
+        try:
+            roles = self.user_roles or []
+        except AttributeError:
+            try:
+                roles = DocumentAccess.objects.filter(
+                    models.Q(user=user) | models.Q(team__in=user.teams),
+                    template__path=Left(
+                        models.Value(self.path), Length("template__path")
+                    ),
+                    ).values_list("role", flat=True)
+            except (models.ObjectDoesNotExist, IndexError):
+                roles = []
+        return roles
+
+    def get_links_definitions(self, ancestors_links):
+        """Get links reach/role definitions for the current document and its ancestors."""
+
+        links_definitions = defaultdict(set)
+        links_definitions[self.link_reach].add(self.link_role)
+
+        # Merge ancestor link definitions
+        for ancestor in ancestors_links:
+            links_definitions[ancestor["link_reach"]].add(ancestor["link_role"])
+
+        return dict(links_definitions)  # Convert defaultdict back to a normal dict
+
+    def compute_ancestors_links(self, user):
+        """
+        Compute the ancestors links for the current template up to the highest readable ancestor.
+        """
+        ancestors = (
+            (self.get_ancestors() | self._meta.model.objects.filter(pk=self.pk))
+            .filter(ancestors_deleted_at__isnull=True)
+            .order_by("path")
+        )
+        highest_readable = ancestors.readable_per_se(user).only("depth").first()
+
+        if highest_readable is None:
+            return []
+
+        ancestors_links = []
+        paths_links_mapping = {}
+        for ancestor in ancestors.filter(depth__gte=highest_readable.depth):
+            ancestors_links.append(
+                {"link_reach": ancestor.link_reach, "link_role": ancestor.link_role}
+            )
+            paths_links_mapping[ancestor.path] = ancestors_links.copy()
+
+        ancestors_links = paths_links_mapping.get(self.path[: -self.steplen], [])
+
+        return ancestors_links
+
+    def get_abilities(self, user, ancestors_links=None):
+        """
+        Compute and return abilities for a given user on the document.
+        """
+        if self.depth <= 1 or getattr(self, "is_highest_ancestor_for_user", False):
+            ancestors_links = []
+        elif ancestors_links is None:
+            ancestors_links = self.compute_ancestors_links(user=user)
+
+        roles = set(
+            self.get_roles(user)
+        )  # at this point only roles based on specific access
+
+        # Characteristics that are based only on specific access
+        is_owner = RoleChoices.OWNER in roles
+        is_deleted = self.ancestors_deleted_at and not is_owner
+        is_owner_or_admin = (is_owner or RoleChoices.ADMIN in roles) and not is_deleted
+
+        # Compute access roles before adding link roles because we don't
+        # want anonymous users to access versions (we wouldn't know from
+        # which date to allow them anyway)
+        # Anonymous users should also not see document accesses
+        has_access_role = bool(roles) and not is_deleted
+        can_update_from_access = (
+                                         is_owner_or_admin or RoleChoices.EDITOR in roles
+                                 ) and not is_deleted
+
+        # Add roles provided by the document link, taking into account its ancestors
+        links_definitions = self.get_links_definitions(ancestors_links)
+        public_roles = links_definitions.get(LinkReachChoices.PUBLIC, set())
+        authenticated_roles = (
+            links_definitions.get(LinkReachChoices.AUTHENTICATED, set())
+            if user.is_authenticated
+            else set()
+        )
+        roles = roles | public_roles | authenticated_roles
+
+        can_get = bool(roles) and not is_deleted
+        can_update = (
+                             is_owner_or_admin or RoleChoices.EDITOR in roles
+                     ) and not is_deleted
+
+        ai_allow_reach_from = settings.AI_ALLOW_REACH_FROM
+        ai_access = any(
+            [
+                ai_allow_reach_from == LinkReachChoices.PUBLIC and can_update,
+                ai_allow_reach_from == LinkReachChoices.AUTHENTICATED
+                and user.is_authenticated
+                and can_update,
+                ai_allow_reach_from == LinkReachChoices.RESTRICTED
+                and can_update_from_access,
+                ]
+        )
+
+        return {
+            "accesses_manage": is_owner_or_admin,
+            "accesses_view": has_access_role,
+            "ai_transform": ai_access,
+            "ai_translate": ai_access,
+            "attachment_upload": can_update,
+            "media_check": can_get,
+            "children_list": can_get,
+            "children_create": can_update and user.is_authenticated,
+            "collaboration_auth": can_get,
+            "cors_proxy": can_get,
+            "descendants": can_get,
+            "destroy": is_owner,
+            "duplicate": can_get,
+            "favorite": can_get and user.is_authenticated,
+            "link_configuration": is_owner_or_admin,
+            "invite_owner": is_owner,
+            "move": is_owner_or_admin and not self.ancestors_deleted_at,
+            "partial_update": can_update,
+            "restore": is_owner,
+            "retrieve": can_get,
+            "media_auth": can_get,
+            "link_select_options": LinkReachChoices.get_select_options(ancestors_links),
+            "tree": can_get,
+            "update": can_update,
+            "versions_destroy": is_owner_or_admin,
+            "versions_list": has_access_role,
+            "versions_retrieve": has_access_role,
+        }
+
+    @transaction.atomic
+    def soft_delete(self):
+        """
+        Soft delete the document, marking the deletion on descendants.
+        We still keep the .delete() method untouched for programmatic purposes.
+        """
+        if (
+                self._meta.model.objects.filter(
+                    models.Q(deleted_at__isnull=False)
+                    | models.Q(ancestors_deleted_at__isnull=False),
+                    pk=self.pk,
+                ).exists()
+                or self.get_ancestors().filter(deleted_at__isnull=False).exists()
+        ):
+            raise RuntimeError(
+                "This document is already deleted or has deleted ancestors."
+            )
+
+        self.ancestors_deleted_at = self.deleted_at = timezone.now()
+        self.save()
+        self.invalidate_nb_accesses_cache()
+
+        if self.depth > 1:
+            self._meta.model.objects.filter(pk=self.get_parent().pk).update(
+                numchild=models.F("numchild") - 1
+            )
+
+        # Mark all descendants as soft deleted
+        self.get_descendants().filter(ancestors_deleted_at__isnull=True).update(
+            ancestors_deleted_at=self.ancestors_deleted_at
+        )
+
+    @transaction.atomic
+    def restore(self):
+        """Cancelling a soft delete with checks."""
+        # This should not happen
+        if self._meta.model.objects.filter(
+                pk=self.pk, deleted_at__isnull=True
+        ).exists():
+            raise RuntimeError("This template is not deleted.")
+
+        if self.deleted_at < get_trashbin_cutoff():
+            raise RuntimeError(
+                "This template was permanently deleted and cannot be restored."
+            )
+
+        # save the current deleted_at value to exclude it from the descendants update
+        current_deleted_at = self.deleted_at
+
+        # Restore the current document
+        self.deleted_at = None
+
+        # Calculate the minimum `deleted_at` among all ancestors
+        ancestors_deleted_at = (
+            self.get_ancestors()
+            .filter(deleted_at__isnull=False)
+            .order_by("deleted_at")
+            .values_list("deleted_at", flat=True)
+            .first()
+        )
+        self.ancestors_deleted_at = ancestors_deleted_at
+        self.save(update_fields=["deleted_at", "ancestors_deleted_at"])
+        self.invalidate_nb_accesses_cache()
+
+        self.get_descendants().exclude(
+            models.Q(deleted_at__isnull=False)
+            | models.Q(ancestors_deleted_at__lt=current_deleted_at)
+        ).update(ancestors_deleted_at=self.ancestors_deleted_at)
+
+        if self.depth > 1:
+            self._meta.model.objects.filter(pk=self.get_parent().pk).update(
+                numchild=models.F("numchild") + 1
+            )
 class LinkTrace(BaseModel):
     """
     Relation model to trace accesses to a document via a link by a logged-in user.
