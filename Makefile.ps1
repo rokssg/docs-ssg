@@ -95,6 +95,7 @@
 
 # Makefile.ps1 - Script PowerShell pour gérer les tâches de développement
 
+# TODO traiter le problème des entrypoint (retours à la ligne Windows vs Linux)
 function Bootstrap {
     Data-Media
     Data-Static
