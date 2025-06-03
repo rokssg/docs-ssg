@@ -469,7 +469,7 @@ function Show-Interactive-Menu {
     Clear-Host
     Write-Host "=========== INTERACTIVE MENU ==========="
     for ($i = 0; $i -lt $commands.Count; $i++) {
-        Write-Host "$($i+1). $($commands[$i].desc)"
+        Write-Host "$($i+1). $($commands[$i].key) : $($commands[$i].desc)"
     }
     Write-Host "0. Leave"
     Write-Host "======================================="
