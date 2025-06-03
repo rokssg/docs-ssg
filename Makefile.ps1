@@ -507,14 +507,20 @@ if ($args.Count -eq 0) {
 }
 
 # === Exécution d'une commande par argument ===
-$matchedCommand = $commands | Where-Object { $_.key -eq $args[0] }
-if ($null -ne $matchedCommand) {
-    & $matchedCommand.action.Invoke()
-} else {
-    Write-Host "Unknown command. Use 'help'."
-    Help
-    exit 1
+Write-Host "Executing command: $($args[0])"
+foreach ($command in $commands) {
+    # Write-Host "Checking command: $($command.key)"
+    if ($command.key -eq $args[0]) {
+        Write-Host "Found command: $($command.key) - $($command.desc)"
+        $command.action.Invoke()
+    }
 }
+exit 0
 
+$matchedCommand = $commands | Where-Object { $_.key -eq $args[0] }
+if ($null -ne $matchedCommand -and $matchedCommand.Count -gt 0) {
+
+    & $matchedCommand.action.Invoke()
+} 
 
 # End of Makefile.ps1 script
