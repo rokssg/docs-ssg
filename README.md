@@ -75,6 +75,8 @@ You can test Docs on your browser by visiting this [demo document](https://impre
 
 Make sure you have a recent version of Docker and [Docker Compose](https://docs.docker.com/compose/install) installed on your laptop, then type:
 
+> **NOTE**: For Windows the prerequisite is to have docker-compose, Docker Desktop is recommended over the installation of Docker engine within WSL which may raise issues and troubleshooting.
+
 ```shellscript
 $ docker -v
 
