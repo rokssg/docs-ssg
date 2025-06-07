@@ -16,6 +16,7 @@ import {
   Doc,
   KEY_DOC,
   KEY_LIST_DOC,
+  ModalDuplicateDoc,
   ModalRemoveDoc,
   useCopyDocLink,
   useCreateFavoriteDoc,
@@ -49,6 +50,7 @@ export const DocToolBoxLicenceAGPL = ({
 
   const { colorsTokens } = useCunninghamTheme();
 
+  const [isModalDuplicateOpen, setIsModalDuplicateOpen] = useState(false);
   const [isModalRemoveOpen, setIsModalRemoveOpen] = useState(false);
   const [isModalExportOpen, setIsModalExportOpen] = useState(false);
 
@@ -105,6 +107,14 @@ export const DocToolBoxLicenceAGPL = ({
         modalHistory.open();
       },
       show: isDesktop,
+    },
+    {
+      label: t('Duplicate document'),
+      icon: 'file_copy',
+      disabled: !doc.abilities.duplicate,
+      callback: () => {
+        setIsModalDuplicateOpen(true);
+      },
     },
 
     {
@@ -180,6 +190,12 @@ export const DocToolBoxLicenceAGPL = ({
       )}
       {isModalExportOpen && (
         <ModalExport onClose={() => setIsModalExportOpen(false)} doc={doc} />
+      )}
+      {isModalDuplicateOpen && (
+        <ModalDuplicateDoc
+          onClose={() => setIsModalDuplicateOpen(false)}
+          doc={doc}
+        />
       )}
       {isModalRemoveOpen && (
         <ModalRemoveDoc onClose={() => setIsModalRemoveOpen(false)} doc={doc} />
